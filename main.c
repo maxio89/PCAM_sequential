@@ -10,22 +10,20 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define DEFAULT_N 80
-#define DEFAULT_M 80
+#define DEFAULT_N 10
+#define DEFAULT_M 20
 #define DEFAULT_H 0.1
 #define DEFAULT_DT 0.001
+#define DEFAULT_MAX_ITER 100
 
-#define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
 #define MIN 0.0
 #define MAX 1.0
 #define WARM_SIZE 1
-#define WARM_FACTOR 2
-#define MAX_ITER 200
 
 double h, dt, pow_h;
-int N, M, zeroCounter;
-double** tab;
-//double** prevTab;
+int N, M, zeroCounter, maxIter;
+double** tab, elapsed;
+clock_t start, end;
 
 double initializeValue(int i, int j, int N, int M) {
 
@@ -41,46 +39,24 @@ double initializeValue(int i, int j, int N, int M) {
 double** initializeTable(double** tab) {
 
     tab = calloc(N, sizeof (double*));
-    //    prevTab = calloc(M, sizeof (double*));
 
     int n;
     for (n = 0; n < N; n++) {
         tab[n] = calloc(M, sizeof (double));
     }
     int m;
-    int ctr=1;
     for (n = 0; n < N; n++) {
         for (m = 0; m < M; m++) {
             tab[n][m] = initializeValue(n, m, N, M);
-//            tab[n][m]=ctr++;
         }
     }
 
     return tab;
 }
 
-//double*** initializeResultTable(double*** tab) {
-//
-//    tab = calloc(M, sizeof (double**));
-//    //    prevTab = calloc(M, sizeof (double*));
-//
-//    int i;
-//    for (i = 0; i < N; i++) {
-//        tab[i] = calloc(N, sizeof (double*));
-//    }
-//
-//    int j;
-//    for (i = 0; i < N; i++) {
-//        for (j = 0; j < MAX_ITER; j++) {
-//            tab[i][j] = calloc(MAX_ITER, sizeof (double));
-//        }
-//    }
-//    return tab;
-//}
-
 void printfTable(double** tab) {
 
-    printf("tab:\n");
+    printf("\ntab:\n");
     int n, m;
     for (n = 0; n < N; n++) {
         for (m = 0; m < M; m++) {
@@ -91,16 +67,7 @@ void printfTable(double** tab) {
     printf("\n");
 }
 
-double drand(double low, double high) {
-    return ( (double) rand() * (high - low)) / (double) RAND_MAX + low;
-}
-
 double calculateValue(double left, double right, double top, double bottom, double previous) {
-//    double a = right + left + top + bottom;
-//    printf("* %1.1f\n", a);
-//    printf("* prev %1.1f\n", previous);
-//    printf("dt %f\n", dt);
-//    printf("h2 %f\n", pow_h);
     double value = (dt * (((right + left + top + bottom) - (4 * previous)) / pow_h)) + previous;
     if (value > 0) {
         return value;
@@ -110,14 +77,12 @@ double calculateValue(double left, double right, double top, double bottom, doub
     }
 }
 
-void run() {
+void run(double** tab) {
     int i, n, m;
-    //    double*** T = initializeResultTable(T);
 
     double** prevTab = initializeTable(prevTab);
-//    double T;
 
-    for (i = 0; i < MAX_ITER; i++) {
+    for (i = 0; i < maxIter; i++) {
         for (n = 0; n < N; n++) {
             for (m = 0; m < M; m++) {
                 double left = 0, right = 0, top = 0, bottom = 0;
@@ -133,22 +98,12 @@ void run() {
                 if (m > 0) {
                     left = prevTab[n][m - 1];
                 }
-//                printf("tab %1.1f\n", tab[n][m]);
-//                printf("prevTab %1.1f\n", prevTab[n][m]);
-//                printf("left %1.1f\n", left);
-//                printf("right %1.1f\n", right);
-//                printf("top %1.1f\n", top);
-//                printf("bottom %1.1f\n", bottom);
                 tab[n][m] = calculateValue(left, right, top, bottom, prevTab[n][m]);
-//                printf("#tab %1.1f\n", tab[n][m]);
-
                 prevTab[n][m] = tab[n][m];
             }
 
         }
-//        break;
-        printf("================== i=%d ===================\n", i);
-//        printfTable(tab);
+        printf("i=%d\n", i);
         if (zeroCounter == N * M) {
             break;
         }
@@ -160,44 +115,49 @@ void run() {
 
 /*
  * Usage:
- *  ./pcam 100 100 0.001 0.01
+ *  ./pcam 100 100 0.001 0.01 500
  * 
  * Arguments initializes variables like below:
  * m = 100
  * n = 100
  * h = 0.001
  * dt = 0.01
+ * maxIter = 
  * 
  */
 int main(int argc, char** argv) {
 
-    if (argc < 5) {
+    if (argc >= 5) {
+        N = atof(argv[2]);
+        M = atof(argv[1]);
+        h = atof(argv[3]);
+        dt = atof(argv[4]);
+        maxIter = DEFAULT_MAX_ITER;
+    } else {
         printf("Initialized default values. \n");
         N = DEFAULT_N;
         M = DEFAULT_M;
         h = DEFAULT_H;
         dt = DEFAULT_DT;
-    } else {
-        N = atof(argv[2]);
-        M = atof(argv[1]);
-        h = atof(argv[3]);
-        dt = atof(argv[4]);
+        maxIter = DEFAULT_MAX_ITER;
+    }
+    if (argc == 6) {
+        maxIter = atof(argv[5]);
     }
     pow_h = h*h;
-    //    printf("a %d \n", M);
+
+    start = clock();
+
     tab = initializeTable(tab);
-    //    tab = initializeTable(prevTab);
-    //    int a[5][2] = { {0,0}, {1,2}, {2,4}, {3,6},{4,8}};
     printfTable(tab);
 
     run(tab);
 
-    //    printf("previous tab:\n");
-    //    printfTable(prevTab);
-    //    double r = drand48();
+    end = clock();
+    elapsed = (double) (end - start) / CLOCKS_PER_SEC;
 
+    printf("\nTook %1.3f seconds\n", elapsed);
 
-    //    printf("%f",drand(0.0, 1.0));
     return (EXIT_SUCCESS);
 }
 
