@@ -10,11 +10,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define DEFAULT_N 10
-#define DEFAULT_M 20
+#define DEFAULT_N 10000
+#define DEFAULT_M 10000
 #define DEFAULT_H 0.1
 #define DEFAULT_DT 0.001
 #define DEFAULT_MAX_ITER 100
+#define AVG_ITER 10
 
 #define MIN 0.0
 #define MAX 1.0
@@ -22,17 +23,18 @@
 
 double h, dt, pow_h;
 int N, M, zeroCounter, maxIter;
-double** tab, elapsed;
+double elapsed;
 clock_t start, end;
 
-double initializeValue(int i, int j, int N, int M) {
-
-    int borderN = ((N * WARM_SIZE) / 4) - 1;
-    int borderM = ((M * WARM_SIZE) / 4) - 1;
-    if (i >= borderN && i < (N - borderN) && j >= borderM && j < (M - borderM)) {
-        return 1.0;
-    } else {
+double initializeValue(int row, int col, int N, int M) {
+    if (col == 0 || (row == N - 1 || row == 0)) {
         return 0.0;
+    } else if (col == M - 1 || (row == N - 1 || row == 0)) {
+        return 0.0;
+    } else if (row == N - 1 || row == 0) {
+        return 0.0;
+    } else {
+        return 1.0;
     }
 }
 
@@ -40,27 +42,26 @@ double** initializeTable(double** tab) {
 
     tab = calloc(N, sizeof (double*));
 
-    int n;
-    for (n = 0; n < N; n++) {
-        tab[n] = calloc(M, sizeof (double));
+    int row;
+    for (row = 0; row < N; row++) {
+        tab[row] = calloc(M, sizeof (double));
     }
     int m;
-    for (n = 0; n < N; n++) {
+    for (row = 0; row < N; row++) {
         for (m = 0; m < M; m++) {
-            tab[n][m] = initializeValue(n, m, N, M);
+            tab[row][m] = initializeValue(row, m, N, M);
         }
     }
-
     return tab;
 }
 
 void printfTable(double** tab) {
 
     printf("\ntab:\n");
-    int n, m;
-    for (n = 0; n < N; n++) {
+    int row, m;
+    for (row = 0; row < N; row++) {
         for (m = 0; m < M; m++) {
-            printf("%1.3f |", tab[n][m]);
+            printf("%1.3f |", tab[row][m]);
         }
         printf("\n");
     }
@@ -77,40 +78,80 @@ double calculateValue(double left, double right, double top, double bottom, doub
     }
 }
 
-void run(double** tab) {
-    int i, n, m;
+void saveTable(double **table, int i, int clear) {
+    char fileName[40];
+    FILE *file;
+    sprintf(fileName, "result.txt");
 
-    double** prevTab = initializeTable(prevTab);
-
-    for (i = 0; i < maxIter; i++) {
-        for (n = 0; n < N; n++) {
-            for (m = 0; m < M; m++) {
-                double left = 0, right = 0, top = 0, bottom = 0;
-                if (n > 0) {
-                    top = prevTab[n - 1][m];
-                }
-                if (n < N - 1) {
-                    bottom = prevTab[n + 1][m];
-                }
-                if (m < M - 1) {
-                    right = prevTab[n][m + 1];
-                }
-                if (m > 0) {
-                    left = prevTab[n][m - 1];
-                }
-                tab[n][m] = calculateValue(left, right, top, bottom, prevTab[n][m]);
-                prevTab[n][m] = tab[n][m];
-            }
-
-        }
-        printf("i=%d\n", i);
-        if (zeroCounter == N * M) {
-            break;
-        }
+    if (clear == 1) {
+        file = fopen(fileName, "wb");
+    } else {
+        file = fopen(fileName, "a");
     }
-    printfTable(tab);
+    if (file == NULL) {
+        printf("Error opening file!\n");
+        exit(1);
+    }
 
+    fprintf(file, "\n====================================== %d ======================================\n", i);
+    int row, col;
+    for (row = 0; row < N; row++) {
+        for (col = 0; col < M; col++) {
 
+            fprintf(file, "%1.3f | ", table[col][row]);
+        }
+        fprintf(file, "\n\n");
+    }
+    fclose(file);
+}
+
+void run() {
+
+    int j;
+    for (j = 0; j < AVG_ITER; j++) {
+        start = clock();
+
+        int i, n, m;
+
+        double** prevTab = initializeTable(prevTab);
+
+        double** tab = initializeTable(tab);
+
+        for (i = 0; i < maxIter; i++) {
+            for (n = 0; n < N; n++) {
+                for (m = 0; m < M; m++) {
+                    double left = 0, right = 0, top = 0, bottom = 0;
+                    if (n > 0) {
+                        top = prevTab[n - 1][m];
+                    }
+                    if (n < N - 1) {
+                        bottom = prevTab[n + 1][m];
+                    }
+                    if (m < M - 1) {
+                        right = prevTab[n][m + 1];
+                    }
+                    if (m > 0) {
+                        left = prevTab[n][m - 1];
+                    }
+                    tab[n][m] = calculateValue(left, right, top, bottom, prevTab[n][m]);
+                }
+            }
+            //        printf("i=%d\n", i);
+            if (zeroCounter == N * M) {
+                break;
+            }
+            *prevTab = *tab;
+            printf("%d\n", i);
+        }
+
+        end = clock();
+        elapsed = elapsed + ((double) (end - start) / CLOCKS_PER_SEC) / AVG_ITER;
+        
+    }
+    printf("\n%1.3f\t%d\n", elapsed, N);
+    //    printfTable(tab);
+
+    //    saveTable(tab, 0, 1);
 }
 
 /*
@@ -118,8 +159,8 @@ void run(double** tab) {
  *  ./pcam 100 100 0.001 0.01 500
  * 
  * Arguments initializes variables like below:
- * m = 100
- * n = 100
+ * n = 100 - rows
+ * m = 100 - cols
  * h = 0.001
  * dt = 0.01
  * maxIter = 
@@ -128,8 +169,8 @@ void run(double** tab) {
 int main(int argc, char** argv) {
 
     if (argc >= 5) {
-        N = atof(argv[2]);
-        M = atof(argv[1]);
+        N = atoi(argv[1]);
+        M = atoi(argv[2]);
         h = atof(argv[3]);
         dt = atof(argv[4]);
         maxIter = DEFAULT_MAX_ITER;
@@ -142,21 +183,20 @@ int main(int argc, char** argv) {
         maxIter = DEFAULT_MAX_ITER;
     }
     if (argc == 6) {
-        maxIter = atof(argv[5]);
+        maxIter = atoi(argv[5]);
     }
     pow_h = h*h;
 
-    start = clock();
 
-    tab = initializeTable(tab);
-    printfTable(tab);
 
-    run(tab);
 
-    end = clock();
-    elapsed = (double) (end - start) / CLOCKS_PER_SEC;
+    //    printfTable(tab);
 
-    printf("\nTook %1.3f seconds\n", elapsed);
+    run();
+
+
+
+
 
     return (EXIT_SUCCESS);
 }
