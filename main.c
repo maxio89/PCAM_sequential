@@ -10,28 +10,28 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define DEFAULT_N 10000
-#define DEFAULT_M 10000
+#define DEFAULT_ROW 10
+#define DEFAULT_COL 10
 #define DEFAULT_H 0.1
 #define DEFAULT_DT 0.001
-#define DEFAULT_MAX_ITER 100
-#define AVG_ITER 10
+#define DEFAULT_MAX_ITER 500
+#define AVG_ITER 1
 
 #define MIN 0.0
 #define MAX 1.0
 #define WARM_SIZE 1
 
 double h, dt, pow_h;
-int N, M, zeroCounter, maxIter;
+int ROW, COL, zeroCounter, maxIter;
 double elapsed;
 clock_t start, end;
 
-double initializeValue(int row, int col, int N, int M) {
-    if (col == 0 || (row == N - 1 || row == 0)) {
+double initializeValue(int row, int col, int ROW, int COL) {
+    if (col == 0 || (row == ROW - 1 || row == 0)) {
         return 0.0;
-    } else if (col == M - 1 || (row == N - 1 || row == 0)) {
+    } else if (col == COL - 1 || (row == ROW - 1 || row == 0)) {
         return 0.0;
-    } else if (row == N - 1 || row == 0) {
+    } else if (row == ROW - 1 || row == 0) {
         return 0.0;
     } else {
         return 1.0;
@@ -40,16 +40,16 @@ double initializeValue(int row, int col, int N, int M) {
 
 double** initializeTable(double** tab) {
 
-    tab = calloc(N, sizeof (double*));
+    tab = calloc(ROW, sizeof (double*));
 
     int row;
-    for (row = 0; row < N; row++) {
-        tab[row] = calloc(M, sizeof (double));
+    for (row = 0; row < ROW; row++) {
+        tab[row] = calloc(COL, sizeof (double));
     }
-    int m;
-    for (row = 0; row < N; row++) {
-        for (m = 0; m < M; m++) {
-            tab[row][m] = initializeValue(row, m, N, M);
+    int col;
+    for (row = 0; row < ROW; row++) {
+        for (col = 0; col < COL; col++) {
+            tab[row][col] = initializeValue(row, col, ROW, COL);
         }
     }
     return tab;
@@ -58,10 +58,10 @@ double** initializeTable(double** tab) {
 void printfTable(double** tab) {
 
     printf("\ntab:\n");
-    int row, m;
-    for (row = 0; row < N; row++) {
-        for (m = 0; m < M; m++) {
-            printf("%1.3f |", tab[row][m]);
+    int row, col;
+    for (row = 0; row < ROW; row++) {
+        for (col = 0; col < COL; col++) {
+            printf("%1.3f |", tab[row][col]);
         }
         printf("\n");
     }
@@ -70,11 +70,11 @@ void printfTable(double** tab) {
 
 double calculateValue(double left, double right, double top, double bottom, double previous) {
     double value = (dt * (((right + left + top + bottom) - (4 * previous)) / pow_h)) + previous;
-    if (value > 0) {
+    if (value > 0.0) {
         return value;
     } else {
         zeroCounter++;
-        return 0;
+        return 0.0;
     }
 }
 
@@ -95,8 +95,8 @@ void saveTable(double **table, int i, int clear) {
 
     fprintf(file, "\n====================================== %d ======================================\n", i);
     int row, col;
-    for (row = 0; row < N; row++) {
-        for (col = 0; col < M; col++) {
+    for (row = 0; row < ROW; row++) {
+        for (col = 0; col < COL; col++) {
 
             fprintf(file, "%1.3f | ", table[col][row]);
         }
@@ -111,45 +111,48 @@ void run() {
     for (j = 0; j < AVG_ITER; j++) {
         start = clock();
 
-        int i, n, m;
+        int i, row, col;
 
-        double** prevTab = initializeTable(prevTab);
+        double** prevTab = initializeTable(prevTab), **prevPtr;
 
         double** tab = initializeTable(tab);
 
         for (i = 0; i < maxIter; i++) {
-            for (n = 0; n < N; n++) {
-                for (m = 0; m < M; m++) {
+            for (row = 0; row < ROW; row++) {
+                for (col = 0; col < COL; col++) {
                     double left = 0, right = 0, top = 0, bottom = 0;
-                    if (n > 0) {
-                        top = prevTab[n - 1][m];
+                    if (row > 0) {
+                        top = prevTab[row - 1][col];
                     }
-                    if (n < N - 1) {
-                        bottom = prevTab[n + 1][m];
+                    if (row < ROW - 1) {
+                        bottom = prevTab[row + 1][col];
                     }
-                    if (m < M - 1) {
-                        right = prevTab[n][m + 1];
+                    if (col < COL - 1) {
+                        right = prevTab[row][col + 1];
                     }
-                    if (m > 0) {
-                        left = prevTab[n][m - 1];
+                    if (col > 0) {
+                        left = prevTab[row][col - 1];
                     }
-                    tab[n][m] = calculateValue(left, right, top, bottom, prevTab[n][m]);
+                    tab[row][col] = calculateValue(left, right, top, bottom, prevTab[row][col]);
                 }
             }
-            //        printf("i=%d\n", i);
-            if (zeroCounter == N * M) {
+            if (zeroCounter == ROW * COL) {
                 break;
             }
-            *prevTab = *tab;
+//            printfTable(tab);
+            prevPtr = prevTab;
+            prevTab = tab;
+            tab = prevPtr;
             printf("%d\n", i);
+//            break;
         }
 
         end = clock();
-        elapsed = elapsed + ((double) (end - start) / CLOCKS_PER_SEC) / AVG_ITER;
-        
+        elapsed = elapsed + ((double) (end - start) / CLOCKS_PER_SEC);
+        printfTable(tab);
     }
-    printf("\n%1.3f\t%d\n", elapsed, N);
-    //    printfTable(tab);
+    printf("\n%1.3f\t%d\n", elapsed / AVG_ITER, ROW);
+        
 
     //    saveTable(tab, 0, 1);
 }
@@ -159,8 +162,8 @@ void run() {
  *  ./pcam 100 100 0.001 0.01 500
  * 
  * Arguments initializes variables like below:
- * n = 100 - rows
- * m = 100 - cols
+ * row = 100 - rows
+ * col = 100 - cols
  * h = 0.001
  * dt = 0.01
  * maxIter = 
@@ -169,15 +172,15 @@ void run() {
 int main(int argc, char** argv) {
 
     if (argc >= 5) {
-        N = atoi(argv[1]);
-        M = atoi(argv[2]);
+        ROW = atoi(argv[1]);
+        COL = atoi(argv[2]);
         h = atof(argv[3]);
         dt = atof(argv[4]);
         maxIter = DEFAULT_MAX_ITER;
     } else {
         printf("Initialized default values. \n");
-        N = DEFAULT_N;
-        M = DEFAULT_M;
+        ROW = DEFAULT_ROW;
+        COL = DEFAULT_COL;
         h = DEFAULT_H;
         dt = DEFAULT_DT;
         maxIter = DEFAULT_MAX_ITER;
@@ -187,16 +190,7 @@ int main(int argc, char** argv) {
     }
     pow_h = h*h;
 
-
-
-
-    //    printfTable(tab);
-
     run();
-
-
-
-
 
     return (EXIT_SUCCESS);
 }
