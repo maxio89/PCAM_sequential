@@ -14,8 +14,8 @@
 #define DEFAULT_COL 10
 #define DEFAULT_H 0.1
 #define DEFAULT_DT 0.001
-#define DEFAULT_MAX_ITER 500
-#define AVG_ITER 1
+#define DEFAULT_MAX_ITER 100
+#define AVG_ITER 10
 
 #define MIN 0.0
 #define MAX 1.0
@@ -149,7 +149,7 @@ void run() {
 
         end = clock();
         elapsed = elapsed + ((double) (end - start) / CLOCKS_PER_SEC);
-        printfTable(tab);
+//        printfTable(tab);
     }
     printf("\n%1.3f\t%d\n", elapsed / AVG_ITER, ROW);
         
